@@ -3,7 +3,7 @@ import Product from '../models/Product.js';
 import InventoryTransaction from '../models/InventoryTransaction.js';
 import { inTransaction } from '../services/transactions.js';
 export async function inventoryList(req, res, next) {
-  try { const rows = await Product.find({ isActive: true }).populate('category', 'name nameBn').sort({ name: 1 }).lean(); res.json({ success: true, data: rows.map(p => ({ ...p, available: p.onHand - p.reserved, lowStock: p.onHand - p.reserved <= p.lowStockThreshold })) }); } catch (error) { next(error); }
+  try { const rows = await Product.find({ isActive: true }).populate('category', 'name nameBn').sort({ name: 1 }).lean(); const now = new Date(); res.json({ success: true, data: rows.map(p => { const offerActive = p.offerPrice != null && (!p.offerStartsAt || p.offerStartsAt <= now) && (!p.offerEndsAt || p.offerEndsAt >= now); return { ...p, available: p.onHand - p.reserved, lowStock: p.onHand - p.reserved <= p.lowStockThreshold, effectivePrice: offerActive ? p.offerPrice : p.price }; }) }); } catch (error) { next(error); }
 }
 export async function adjustInventory(req, res, next) {
   try {

@@ -29,9 +29,9 @@ export async function dashboard(req, res, next) {
 
 export async function customers(req, res, next) {
   try {
-    const q = String(req.query.q || '').trim(); const filter = { role: 'CUSTOMER' };
+    const q = String(req.query.q || '').trim(); const filter = { role: 'CUSTOMER', ...(req.query.activeOnly === 'true' ? { isActive: true } : {}) };
     if (q) { const safe = q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); filter.$or = [{ name: new RegExp(safe, 'i') }, { phone: new RegExp(safe, 'i') }]; }
-    const result = await User.find(filter).select('name phone email address dueBalance createdAt').sort({ createdAt: -1 }).limit(200).lean();
+    const result = await User.find(filter).select('name phone email address dueBalance createdAt isActive').sort({ createdAt: -1 }).limit(200).lean();
     res.json({ success: true, data: result });
   } catch (error) { next(error); }
 }
