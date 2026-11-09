@@ -7,7 +7,7 @@ import { useCart } from './context/CartContext.jsx';
 import { io } from 'socket.io-client';
 import SiteHeader from './components/SiteHeader.jsx';
 const OwnerDashboard = lazy(() => import('./pages/OwnerDashboard.jsx'));
-const ProductManager = lazy(() => import('./pages/OwnerDashboard.jsx').then(module => ({ default: module.ProductManager })));
+const ProductManager = lazy(() => import('./pages/ProductManager.jsx'));
 const Reports = lazy(() => import('./pages/OwnerDashboard.jsx').then(module => ({ default: module.Reports })));
 const OwnerCustomers = lazy(() => import('./pages/OwnerCustomers.jsx'));
 const ShopSettings = lazy(() => import('./pages/OwnerCustomers.jsx').then(module => ({ default: module.ShopSettings })));

@@ -7,7 +7,7 @@ export async function inventoryList(req, res, next) {
 }
 export async function adjustInventory(req, res, next) {
   try {
-    const data = z.object({ productId: z.string(), delta: z.number().int().refine(v => v !== 0), note: z.string().trim().min(3).max(300) }).strict().parse(req.body);
+    const data = z.object({ productId: z.string(), delta: z.number().finite().refine(v => v !== 0), note: z.string().trim().min(3).max(300) }).strict().parse(req.body);
     const product = await inTransaction(async (session) => {
       const updated = await Product.findOneAndUpdate({ _id: data.productId, isActive: true, $expr: { $gte: [{ $add: ['$onHand', data.delta] }, '$reserved'] } }, { $inc: { onHand: data.delta } }, { new: true, session });
       if (!updated) throw Object.assign(new Error('Product not found or stock cannot be lower than reserved units.'), { status: 409 });
