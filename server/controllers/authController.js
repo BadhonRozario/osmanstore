@@ -3,8 +3,21 @@ import { z } from 'zod';
 import User from '../models/User.js';
 
 const loginSchema = z.object({ phone: z.string().trim().min(1), password: z.string().min(1) });
+const registerSchema = z.object({ name: z.string().trim().min(2).max(100), phone: z.string().trim().min(6).max(24), address: z.string().max(500).optional(), password: z.string().min(8).max(100) });
 const issueToken = (user) => jwt.sign({ sub: user.id }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES_IN || '7d' });
 const safeUser = (user) => ({ id: user.id, name: user.name, phone: user.phone, email: user.email || '', address: user.address || '', role: user.role });
+
+export async function register(req, res, next) {
+  try {
+    const data = registerSchema.parse(req.body);
+    const user = await User.create({ ...data, role: 'CUSTOMER' });
+    res.status(201).json({ success: true, data: { user: safeUser(user), token: issueToken(user) } });
+  } catch (error) {
+    if (error.code === 11000) return res.status(409).json({ success: false, message: 'Phone number is already registered.' });
+    if (error instanceof z.ZodError) return res.status(400).json({ success: false, message: error.issues[0].message });
+    next(error);
+  }
+}
 
 export async function login(req, res, next) {
   try {

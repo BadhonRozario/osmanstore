@@ -1,13 +1,8 @@
 import { Router } from 'express';
-import { changePassword, login, me, updateProfile } from '../controllers/authController.js';
-import { sendRegistrationOtp, verifyRegistrationOtp } from '../controllers/registrationController.js';
+import { changePassword, login, me, register, updateProfile } from '../controllers/authController.js';
 import { authenticate } from '../middleware/auth.js';
-import rateLimit from 'express-rate-limit';
 const router = Router();
-const otpRequestLimiter = rateLimit({ windowMs: 60 * 60 * 1000, limit: 5, standardHeaders: 'draft-7', legacyHeaders: false, message: { success: false, message: 'Too many verification requests. Try again later.' } });
-const otpVerifyLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 10, standardHeaders: 'draft-7', legacyHeaders: false, message: { success: false, message: 'Too many verification attempts. Try again later.' } });
-router.post('/register/send-code', otpRequestLimiter, sendRegistrationOtp);
-router.post('/register/verify', otpVerifyLimiter, verifyRegistrationOtp);
+router.post('/register', register);
 router.post('/login', login);
 router.get('/me', authenticate, me);
 router.patch('/profile', authenticate, updateProfile);
