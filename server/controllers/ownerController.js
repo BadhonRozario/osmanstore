@@ -51,7 +51,9 @@ export async function getSettings(req, res, next) {
 
 export async function updateSettings(req, res, next) {
   try {
-    const data = z.object({ storeName: z.string().trim().min(1).max(100).optional(), phone: z.string().max(30).optional(), address: z.string().max(500).optional(), openingHours: z.string().max(200).optional(), currency: z.enum(['BDT']).optional(), defaultLanguage: z.enum(['bn', 'en']).optional() }).strict().parse(req.body);
+    // The settings form is initialized from a Mongo document, so it can include
+    // metadata fields such as _id, __v, and timestamps. Keep only editable fields.
+    const data = z.object({ storeName: z.string().trim().min(1).max(100).optional(), phone: z.string().max(30).optional(), address: z.string().max(500).optional(), openingHours: z.string().max(200).optional(), currency: z.enum(['BDT']).optional(), defaultLanguage: z.enum(['bn', 'en']).optional() }).strip().parse(req.body);
     const settings = await ShopSettings.findOneAndUpdate({}, { $set: data }, { upsert: true, new: true, runValidators: true }); res.json({ success: true, data: settings });
   } catch (error) { if (error instanceof z.ZodError) return res.status(400).json({ success: false, message: error.issues[0].message }); next(error); }
 }
