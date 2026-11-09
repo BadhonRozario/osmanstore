@@ -1,0 +1,12 @@
+import { Router } from 'express';
+import { customerDetail, customers, dashboard, getSettings, reports, updateSettings } from '../controllers/ownerController.js';
+import { authenticate, requireRole } from '../middleware/auth.js';
+const router = Router();
+router.use(authenticate, requireRole('OWNER'));
+router.get('/dashboard', dashboard);
+router.get('/customers', customers);
+router.get('/customers/:id', customerDetail);
+router.get('/settings', getSettings);
+router.patch('/settings', updateSettings);
+router.get('/reports', reports);
+export default router;

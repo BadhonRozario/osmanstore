@@ -1,0 +1,4 @@
+import mongoose from 'mongoose';
+const dueTransactionSchema = new mongoose.Schema({ customer: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true }, type: { type: String, enum: ['CREDIT_SALE', 'PAYMENT', 'ADJUSTMENT'], required: true }, amount: { type: Number, required: true, min: 0.01 }, adjustmentDirection: { type: String, enum: ['INCREASE', 'DECREASE'], default: null }, sale: { type: mongoose.Schema.Types.ObjectId, ref: 'Sale', default: null }, payment: { type: mongoose.Schema.Types.ObjectId, ref: 'Payment', default: null }, note: { type: String, trim: true, default: '' }, createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true } }, { timestamps: true });
+dueTransactionSchema.index({ customer: 1, createdAt: -1 });
+export default mongoose.models.DueTransaction || mongoose.model('DueTransaction', dueTransactionSchema);

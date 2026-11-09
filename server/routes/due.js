@@ -1,0 +1,10 @@
+import { Router } from 'express';
+import { addAdjustment, getMyLedger, listDueCustomers, recordPayment } from '../controllers/financeController.js';
+import { authenticate, requireRole } from '../middleware/auth.js';
+const router = Router();
+router.use(authenticate);
+router.get('/me', requireRole('CUSTOMER'), getMyLedger);
+router.get('/customers', requireRole('OWNER'), listDueCustomers);
+router.post('/adjustments', requireRole('OWNER'), addAdjustment);
+router.post('/payments', requireRole('OWNER'), recordPayment);
+export default router;

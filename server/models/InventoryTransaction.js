@@ -1,0 +1,3 @@
+import mongoose from 'mongoose';
+const schema = new mongoose.Schema({ product: { type: mongoose.Schema.Types.ObjectId, ref: 'Product', required: true, index: true }, type: { type: String, enum: ['SALE', 'RESERVATION', 'RESERVATION_RELEASE', 'ADJUSTMENT'], required: true }, quantity: { type: Number, required: true }, reference: { type: String, default: '' }, note: { type: String, default: '' }, createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null } }, { timestamps: true });
+export default mongoose.models.InventoryTransaction || mongoose.model('InventoryTransaction', schema);

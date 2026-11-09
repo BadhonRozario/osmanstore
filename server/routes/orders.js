@@ -1,0 +1,10 @@
+import { Router } from 'express';
+import { cancelMyOrder, listOrders, placeOrder, updateOrderStatus } from '../controllers/orderController.js';
+import { authenticate, requireRole } from '../middleware/auth.js';
+const router = Router();
+router.use(authenticate);
+router.get('/', listOrders);
+router.post('/', requireRole('CUSTOMER'), placeOrder);
+router.post('/:id/cancel', requireRole('CUSTOMER'), cancelMyOrder);
+router.patch('/:id/status', requireRole('OWNER'), updateOrderStatus);
+export default router;

@@ -1,0 +1,13 @@
+import { Router } from 'express';
+import { createProduct, deactivateProduct, listProducts, removeProductImage, updateProduct, uploadProductImage } from '../controllers/catalogController.js';
+import { authenticate, requireRole } from '../middleware/auth.js';
+import multer from 'multer';
+const router = Router();
+const imageUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 3 * 1024 * 1024 }, fileFilter: (req, file, done) => /^image\/(jpeg|png|webp)$/.test(file.mimetype) ? done(null, true) : done(Object.assign(new Error('Use a JPEG, PNG, or WebP image.'), { status: 400 })) });
+router.get('/', listProducts);
+router.post('/image', authenticate, requireRole('OWNER'), imageUpload.single('image'), uploadProductImage);
+router.delete('/:id/image', authenticate, requireRole('OWNER'), removeProductImage);
+router.post('/', authenticate, requireRole('OWNER'), createProduct);
+router.put('/:id', authenticate, requireRole('OWNER'), updateProduct);
+router.delete('/:id', authenticate, requireRole('OWNER'), deactivateProduct);
+export default router;
