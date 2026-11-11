@@ -82,10 +82,18 @@ export async function updateCategory(req, res, next) {
 
 export async function deleteCategory(req, res, next) {
   try {
-    if (await Product.exists({ category: req.params.id, isActive: true })) return res.status(409).json({ success: false, message: 'Reassign active products before removing this category.' });
-    const category = await Category.findByIdAndUpdate(req.params.id, { $set: { isActive: false } }, { new: true });
-    if (!category) return res.status(404).json({ success: false, message: 'Category not found.' });
-    res.json({ success: true, data: category });
+    const result = await inTransaction(async (session) => {
+      const category = await Category.findOne({ _id: req.params.id, isActive: true }).session(session);
+      if (!category) throw Object.assign(new Error('Category not found.'), { status: 404 });
+      if (await Product.exists({ category: category._id, isActive: true, reserved: { $gt: 0 } }).session(session)) {
+        throw Object.assign(new Error('This category has products reserved for active orders. Finish or cancel those orders before removing the category.'), { status: 409 });
+      }
+      category.isActive = false;
+      await category.save({ session });
+      const products = await Product.updateMany({ category: category._id, isActive: true }, { $set: { isActive: false } }, { session });
+      return { category, deactivatedProductCount: products.modifiedCount };
+    });
+    res.json({ success: true, data: result });
   } catch (error) { next(error); }
 }
 

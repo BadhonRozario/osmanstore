@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Search, Pencil, X, Save, PackagePlus } from 'lucide-react';
+import { Search, Pencil, X, Save, PackagePlus, Trash2, AlertTriangle } from 'lucide-react';
 import api from '../services/api.js';
 import SiteHeader from '../components/SiteHeader.jsx';
 
@@ -18,6 +18,8 @@ export default function ProductManager() {
   const [error, setError] = useState('');
   const [busyId, setBusyId] = useState('');
   const [newCategory, setNewCategory] = useState('');
+  const [categoryToDelete, setCategoryToDelete] = useState(null);
+  const [deletingCategory, setDeletingCategory] = useState(false);
   const [image, setImage] = useState({ imageUrl: '', imagePublicId: '' });
   const [newProduct, setNewProduct] = useState({ name: '', nameBn: '', category: '', price: '', unit: 'kg', onHand: '' });
 
@@ -127,6 +129,24 @@ export default function ProductManager() {
     }
   };
 
+  const removeCategory = async () => {
+    if (!categoryToDelete || deletingCategory) return;
+    setDeletingCategory(true);
+    setError('');
+    setMessage('');
+    try {
+      const { data } = await api.delete(`/categories/${categoryToDelete._id}`);
+      setMessage(`“${categoryToDelete.nameBn || categoryToDelete.name}” category ও এর ${data.data.deactivatedProductCount}টি product active list থেকে সরানো হয়েছে।`);
+      setCategoryToDelete(null);
+      if (editingId && products.find(product => product._id === editingId)?.category?._id === categoryToDelete._id) setEditingId('');
+      await load();
+    } catch (e) {
+      setError(e.response?.data?.message || 'ক্যাটাগরি মুছে ফেলা যায়নি।');
+    } finally {
+      setDeletingCategory(false);
+    }
+  };
+
   const uploadImage = async file => {
     if (!file) return;
     const form = new FormData();
@@ -161,10 +181,23 @@ export default function ProductManager() {
     </div>
     {(message || error) && <p role="status" className={`mt-4 rounded-lg p-3 text-sm ${error ? 'bg-red-50 text-red-700' : 'bg-brand-50 text-brand-800'}`}>{error || message}</p>}
 
-    <form onSubmit={createCategory} className="mt-5 flex flex-wrap gap-2 rounded-xl border bg-white p-4">
-      <input className="field max-w-sm flex-1" required placeholder="নতুন ক্যাটাগরির নাম" value={newCategory} onChange={e => setNewCategory(e.target.value)}/>
-      <button className="rounded-lg border px-4 py-2">ক্যাটাগরি যোগ</button>
-    </form>
+    <section className="mt-5 rounded-xl border bg-white p-4 sm:p-5">
+      <div className="flex flex-wrap items-center justify-between gap-2"><div><h2 className="font-bold">ক্যাটাগরি ব্যবস্থাপনা</h2><p className="mt-1 text-sm text-stone-500">ক্যাটাগরি সরালে এর সব active product-ও দোকান থেকে সরবে।</p></div><span className="text-sm text-stone-500">{categories.length}টি category</span></div>
+      <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+        {categories.map(category => {
+          const count = products.filter(product => (product.category?._id || product.category) === category._id).length;
+          return <div key={category._id} className="flex min-w-0 items-center justify-between gap-3 rounded-lg border bg-stone-50 p-3">
+            <div className="min-w-0"><b className="block truncate">{category.nameBn || category.name}</b><small className="block truncate text-stone-500">{category.name} · {count}টি active product</small></div>
+            <button type="button" onClick={() => setCategoryToDelete({ ...category, activeProductCount: count })} className="inline-flex flex-none items-center gap-1 rounded-lg border border-red-100 bg-white px-2.5 py-2 text-xs font-semibold text-red-700 hover:bg-red-50"><Trash2 size={14}/>সরান</button>
+          </div>;
+        })}
+        {!categories.length && <p className="text-sm text-stone-500">কোনো active category নেই।</p>}
+      </div>
+      <form onSubmit={createCategory} className="mt-4 flex flex-wrap gap-2 border-t pt-4">
+        <input className="field max-w-sm flex-1" required placeholder="নতুন ক্যাটাগরির নাম" value={newCategory} onChange={e => setNewCategory(e.target.value)}/>
+        <button className="rounded-lg border px-4 py-2">ক্যাটাগরি যোগ</button>
+      </form>
+    </section>
 
     <form onSubmit={createProduct} className="mt-5 grid gap-3 rounded-xl border bg-white p-5 sm:grid-cols-2 lg:grid-cols-3">
       <h2 className="flex items-center gap-2 font-bold sm:col-span-2 lg:col-span-3"><PackagePlus size={18}/> নতুন পণ্য যোগ করুন</h2>
@@ -215,5 +248,13 @@ export default function ProductManager() {
       </article>)}
       {!filteredProducts.length && <div className="rounded-xl border border-dashed bg-white px-4 py-12 text-center text-stone-500">{search ? 'এই নামে কোনো পণ্য পাওয়া যায়নি।' : 'এখনো কোনো পণ্য যোগ করা হয়নি।'}</div>}
     </div>
+    {categoryToDelete && <div className="fixed inset-0 z-[90] grid place-items-center overflow-y-auto bg-stone-950/50 p-4" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget && !deletingCategory) setCategoryToDelete(null); }}>
+      <section role="alertdialog" aria-modal="true" aria-labelledby="delete-category-title" className="w-full max-w-md rounded-2xl bg-white p-5 shadow-2xl sm:p-6">
+        <span className="grid h-11 w-11 place-items-center rounded-xl bg-red-50 text-red-700"><AlertTriangle size={21}/></span>
+        <h2 id="delete-category-title" className="mt-4 text-xl font-bold">ক্যাটাগরি ও product সরাবেন?</h2>
+        <p className="mt-2 text-sm leading-6 text-stone-600"><b>{categoryToDelete.nameBn || categoryToDelete.name}</b> category এবং এর <b>{categoryToDelete.activeProductCount}</b>টি active product customer-এর shop ও inventory list থেকে inactive হবে। পুরোনো sale ও stock history থাকবে।</p>
+        <div className="mt-5 flex justify-end gap-2"><button type="button" disabled={deletingCategory} onClick={() => setCategoryToDelete(null)} className="rounded-lg border px-4 py-2 text-sm">না, ফিরে যান</button><button type="button" disabled={deletingCategory} onClick={removeCategory} className="inline-flex items-center gap-2 rounded-lg bg-red-700 px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"><Trash2 size={15}/>{deletingCategory ? 'সরানো হচ্ছে…' : 'হ্যাঁ, সব সরান'}</button></div>
+      </section>
+    </div>}
   </main></>;
 }
