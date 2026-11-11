@@ -53,12 +53,12 @@ export async function listOrders(req, res, next) {
 
 export async function updateOrderStatus(req, res, next) {
   try {
-    const schema = z.object({ status: z.enum(['ACCEPTED', 'PREPARING', 'READY_FOR_PICKUP', 'REJECTED', 'CANCELLED', 'COMPLETED']), paidAmount: z.number().nonnegative().optional(), paymentMethod: z.enum(['CASH', 'BKASH']).optional(), approveDue: z.boolean().optional(), note: z.string().max(1000).optional() }).strict();
+    const schema = z.object({ status: z.enum(['ACCEPTED', 'REJECTED', 'CANCELLED', 'COMPLETED']), paidAmount: z.number().nonnegative().optional(), paymentMethod: z.enum(['CASH', 'BKASH']).optional(), approveDue: z.boolean().optional(), note: z.string().max(1000).optional() }).strict();
     const input = schema.parse(req.body);
     const result = await inTransaction(async (session) => {
       const order = await Order.findById(req.params.id).session(session);
       if (!order) throw Object.assign(new Error('Order not found.'), { status: 404 });
-      const transitions = { NEW: ['ACCEPTED', 'REJECTED', 'CANCELLED'], ACCEPTED: ['PREPARING', 'REJECTED', 'CANCELLED'], PREPARING: ['READY_FOR_PICKUP', 'REJECTED', 'CANCELLED'], READY_FOR_PICKUP: ['COMPLETED', 'CANCELLED'] };
+      const transitions = { NEW: ['ACCEPTED', 'REJECTED', 'CANCELLED'], ACCEPTED: ['COMPLETED', 'REJECTED', 'CANCELLED'], PREPARING: ['COMPLETED', 'REJECTED', 'CANCELLED'], READY_FOR_PICKUP: ['COMPLETED', 'REJECTED', 'CANCELLED'] };
       if (order.status === 'COMPLETED') throw Object.assign(new Error('Order has already been completed.'), { status: 409 });
       if (!transitions[order.status]?.includes(input.status)) throw Object.assign(new Error('That order status change is not allowed.'), { status: 409 });
       if (['REJECTED', 'CANCELLED'].includes(input.status)) {
@@ -103,7 +103,7 @@ export async function cancelMyOrder(req, res, next) {
     const order = await inTransaction(async (session) => {
       const current = await Order.findOne({ _id: req.params.id, customer: req.user.id }).session(session);
       if (!current) throw Object.assign(new Error('Order not found.'), { status: 404 });
-      if (!['NEW', 'ACCEPTED'].includes(current.status)) throw Object.assign(new Error('You can cancel an order only before preparation begins.'), { status: 409 });
+      if (!['NEW', 'ACCEPTED'].includes(current.status)) throw Object.assign(new Error('You can cancel an order only before pickup is completed.'), { status: 409 });
       if (!current.stockReleased) {
         for (const item of current.items) {
           const released = await Product.updateOne({ _id: item.product, reserved: { $gte: item.quantity } }, { $inc: { reserved: -item.quantity } }, { session });
