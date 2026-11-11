@@ -23,6 +23,43 @@ const categoryPhotos = [
   'https://images.unsplash.com/photo-1596040033229-a9821ebd058d?auto=format&fit=crop&w=800&q=82',
   'https://images.unsplash.com/photo-1563453392212-326f5e854473?auto=format&fit=crop&w=800&q=82',
 ];
+const heroPhotos = [
+  { src: 'https://images.unsplash.com/photo-1705951462886-5e539771d7c1?auto=format&fit=crop&w=1400&q=86', alt: 'তাজা ফল ও সবজিতে সাজানো বাজারের তাক', credit: 'Daniel von Appen / Unsplash', creditUrl: 'https://unsplash.com/photos/a-fruit-and-vegetable-stand-in-a-grocery-store-WOZANyU9gps' },
+  { src: 'https://images.unsplash.com/photo-1719427129712-6dd7b5f101f8?auto=format&fit=crop&w=1400&q=86', alt: 'রঙিন তাজা ফল ও সবজির grocery display', credit: 'Fahmi Huwaidy / Unsplash', creditUrl: 'https://unsplash.com/photos/a-display-in-a-grocery-store-filled-with-fruits-and-vegetables-tCn961-PWHA' },
+  { src: 'https://images.unsplash.com/photo-1688964420317-0c48f1d3781d?auto=format&fit=crop&w=1400&q=86', alt: 'পরিপাটি grocery shop-এ ফল ও সবজির display', credit: 'nrd / Unsplash', creditUrl: 'https://unsplash.com/photos/a-display-in-a-grocery-store-filled-with-lots-of-fruits-and-vegetables-N7jlXYMdiFQ' },
+  { src: 'https://images.unsplash.com/photo-1604719312566-8912e9227c6a?auto=format&fit=crop&w=1400&q=86', alt: 'সাজানো supermarket grocery aisle', credit: 'Franki Chamaki / Unsplash', creditUrl: 'https://unsplash.com/photos/grocery-store-aisle-with-stocked-shelves-ivfp_yxZuYQ' },
+];
+function HeroPhotoSlider() {
+  const [activeIndex, setActiveIndex] = useState(0);
+  const [loaded, setLoaded] = useState(() => new Set());
+  const [paused, setPaused] = useState(false);
+  useEffect(() => {
+    heroPhotos.forEach(({ src }) => { const image = new Image(); image.src = src; });
+  }, []);
+  useEffect(() => {
+    if (paused || document.hidden || loaded.size < 2 || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return undefined;
+    const timer = window.setInterval(() => setActiveIndex(current => {
+      for (let step = 1; step <= heroPhotos.length; step += 1) {
+        const next = (current + step) % heroPhotos.length;
+        if (loaded.has(next)) return next;
+      }
+      return current;
+    }), 3000);
+    return () => window.clearInterval(timer);
+  }, [loaded, paused]);
+  useEffect(() => {
+    const syncVisibility = () => { if (document.hidden) setPaused(true); else setPaused(false); };
+    document.addEventListener('visibilitychange', syncVisibility);
+    return () => document.removeEventListener('visibilitychange', syncVisibility);
+  }, []);
+  return <>
+    {heroPhotos.map((photo, index) => <img key={photo.src} className={`hero-photo hero-photo-slide ${index === activeIndex ? 'is-active' : ''}`} src={photo.src} alt={photo.alt} fetchPriority={index === 0 ? 'high' : 'auto'} decoding="async" onLoad={() => setLoaded(current => new Set(current).add(index))} aria-hidden={index !== activeIndex}/>) }
+    <div className="hero-photo-dots" role="group" aria-label="ছবি বেছে নিন">
+      {heroPhotos.map((photo, index) => loaded.has(index) && <button key={photo.src} type="button" className={index === activeIndex ? 'active' : ''} onClick={() => setActiveIndex(index)} aria-label={`${index + 1} নম্বর ছবি দেখুন`} aria-pressed={index === activeIndex}/>) }
+    </div>
+    <small className="hero-photo-credit">Photo by <a href={heroPhotos[activeIndex].creditUrl} target="_blank" rel="noreferrer">{heroPhotos[activeIndex].credit}</a></small>
+  </>;
+}
 function productFallbackPhoto(product) {
   const label = `${product.category?.nameBn || ''} ${product.category?.name || ''} ${product.nameBn || ''} ${product.name || ''}`.toLowerCase();
   if (/চাল|ডাল|rice|grain|lentil|pulse/.test(label)) return categoryPhotos[0];
@@ -32,7 +69,7 @@ function productFallbackPhoto(product) {
 }
 const statusName = { NEW: 'নতুন', ACCEPTED: 'গৃহীত', PREPARING: 'তৈরি হচ্ছে', READY_FOR_PICKUP: 'সংগ্রহের জন্য প্রস্তুত', COMPLETED: 'সম্পন্ন', REJECTED: 'বাতিল', CANCELLED: 'বাতিল' };
 function Shell({ children }) { return <div className="min-h-screen bg-stone-50"><SiteHeader/><main className="mx-auto max-w-6xl px-5 py-8">{children}</main></div> }
-function Home() { return <div className="home-page"><SiteHeader/><main><section className="hero-wrap"><div className="hero mx-auto grid max-w-7xl items-center gap-8 px-5 py-12 sm:px-8 md:grid-cols-[1fr_.92fr] md:gap-5 md:py-16 lg:py-20"><div className="hero-copy"><div className="eyebrow"><Sparkles size={15}/> আপনার পাড়ার বাজার, এখন হাতের মুঠোয়</div><h1>প্রতিদিনের বাজার<br/><span>এবার হবে আরও সহজ।</span></h1><p className="hero-lead">চাল, ডাল থেকে ঘরের নিত্যপ্রয়োজনীয় সবকিছু—পছন্দের পণ্য বেছে অর্ডার করুন, আর দোকান থেকে সুবিধামতো সংগ্রহ করুন।</p><div className="mt-7 flex flex-wrap gap-3"><Link to="/shop" className="hero-primary">বাজার শুরু করুন <ArrowRight size={18}/></Link><Link to="/orders" className="hero-secondary">আমার অর্ডার</Link></div><div className="hero-promise"><span><ShieldCheck size={17}/> বিশ্বস্ত স্থানীয় দোকান</span><i/><span><Clock3 size={17}/> সহজে অর্ডার, দোকান থেকে সংগ্রহ</span></div></div><div className="hero-art"><img className="hero-photo" src="https://images.unsplash.com/photo-1705951462886-5e539771d7c1?auto=format&fit=crop&w=1200&q=88" alt="তাজা ফল ও সবজিতে সাজানো বাজারের তাক" fetchPriority="high"/><div className="hero-photo-shade"/><div className="hero-photo-brand"><span className="photo-live-dot"/>OSMAN STORE <small>LOCAL MARKET</small></div><div className="hero-photo-caption"><span>প্রতিদিনের প্রয়োজন</span><b>ভালো বাজার,<br/>ভালো থাকা।</b><small>চাল · ডাল · তাজা বাজার</small></div><div className="hero-pickup-card"><span><Store size={19}/></span><div><small>সহজ সংগ্রহ</small><b>দোকান থেকে নিয়ে যান</b></div><ArrowRight size={17}/></div><small className="hero-photo-credit">Photo by <a href="https://unsplash.com/photos/a-fruit-and-vegetable-stand-in-a-grocery-store-WOZANyU9gps" target="_blank" rel="noreferrer">Daniel von Appen / Unsplash</a></small></div></div></section><HomeCategories/><section className="trust-strip"><div className="mx-auto grid max-w-7xl gap-5 px-5 py-8 sm:grid-cols-3 sm:px-8"><div><ShieldCheck/><span><b>বিশ্বাসের কেনাকাটা</b><small>আপনার পরিচিত পাড়ার দোকান</small></span></div><div><ShoppingBasket/><span><b>সহজ অর্ডার</b><small>পছন্দের জিনিস ঝুড়িতে যোগ করুন</small></span></div><div><Store/><span><b>দোকান থেকে সংগ্রহ</b><small>অর্ডার প্রস্তুত হলে এসে নিন</small></span></div></div></section></main></div> }
+function Home() { return <div className="home-page"><SiteHeader/><main><section className="hero-wrap"><div className="hero mx-auto grid max-w-7xl items-center gap-8 px-5 py-12 sm:px-8 md:grid-cols-[1fr_.92fr] md:gap-5 md:py-16 lg:py-20"><div className="hero-copy"><div className="eyebrow"><Sparkles size={15}/> আপনার পাড়ার বাজার, এখন হাতের মুঠোয়</div><h1>প্রতিদিনের বাজার<br/><span>এবার হবে আরও সহজ।</span></h1><p className="hero-lead">চাল, ডাল থেকে ঘরের নিত্যপ্রয়োজনীয় সবকিছু—পছন্দের পণ্য বেছে অর্ডার করুন, আর দোকান থেকে সুবিধামতো সংগ্রহ করুন।</p><div className="mt-7 flex flex-wrap gap-3"><Link to="/shop" className="hero-primary">বাজার শুরু করুন <ArrowRight size={18}/></Link><Link to="/orders" className="hero-secondary">আমার অর্ডার</Link></div><div className="hero-promise"><span><ShieldCheck size={17}/> বিশ্বস্ত স্থানীয় দোকান</span><i/><span><Clock3 size={17}/> সহজে অর্ডার, দোকান থেকে সংগ্রহ</span></div></div><div className="hero-art"><HeroPhotoSlider/><div className="hero-photo-shade"/><div className="hero-photo-brand"><span className="photo-live-dot"/>OSMAN STORE <small>LOCAL MARKET</small></div><div className="hero-photo-caption"><span>প্রতিদিনের প্রয়োজন</span><b>ভালো বাজার,<br/>ভালো থাকা।</b><small>চাল · ডাল · তাজা বাজার</small></div><div className="hero-pickup-card"><span><Store size={19}/></span><div><small>সহজ সংগ্রহ</small><b>দোকান থেকে নিয়ে যান</b></div><ArrowRight size={17}/></div></div></div></section><HomeCategories/><section className="trust-strip"><div className="mx-auto grid max-w-7xl gap-5 px-5 py-8 sm:grid-cols-3 sm:px-8"><div><ShieldCheck/><span><b>বিশ্বাসের কেনাকাটা</b><small>আপনার পরিচিত পাড়ার দোকান</small></span></div><div><ShoppingBasket/><span><b>সহজ অর্ডার</b><small>পছন্দের জিনিস ঝুড়িতে যোগ করুন</small></span></div><div><Store/><span><b>দোকান থেকে সংগ্রহ</b><small>অর্ডার প্রস্তুত হলে এসে নিন</small></span></div></div></section></main></div> }
 function Login() {
   const { save, user } = useAuth();
   const nav = useNavigate();
