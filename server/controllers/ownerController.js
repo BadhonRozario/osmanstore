@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { randomBytes } from 'node:crypto';
 import User from '../models/User.js';
 import Product from '../models/Product.js';
 import Order from '../models/Order.js';
@@ -6,6 +7,7 @@ import Sale from '../models/Sale.js';
 import Payment from '../models/Payment.js';
 import DueTransaction from '../models/DueTransaction.js';
 import ShopSettings from '../models/ShopSettings.js';
+import { inTransaction } from '../services/transactions.js';
 
 const BD_OFFSET_MS = 6 * 60 * 60 * 1000;
 const dayStart = (date = new Date()) => { const bd = new Date(new Date(date).getTime() + BD_OFFSET_MS); return new Date(Date.UTC(bd.getUTCFullYear(), bd.getUTCMonth(), bd.getUTCDate()) - BD_OFFSET_MS); };
@@ -29,7 +31,7 @@ export async function dashboard(req, res, next) {
 
 export async function customers(req, res, next) {
   try {
-    const q = String(req.query.q || '').trim(); const filter = { role: 'CUSTOMER', ...(req.query.activeOnly === 'true' ? { isActive: true } : {}) };
+    const q = String(req.query.q || '').trim(); const filter = { role: 'CUSTOMER', isActive: true };
     if (q) { const safe = q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); filter.$or = [{ name: new RegExp(safe, 'i') }, { phone: new RegExp(safe, 'i') }]; }
     const result = await User.find(filter).select('name phone email address dueBalance createdAt isActive').sort({ createdAt: -1 }).limit(200).lean();
     res.json({ success: true, data: result });
@@ -38,10 +40,40 @@ export async function customers(req, res, next) {
 
 export async function customerDetail(req, res, next) {
   try {
-    const customer = await User.findOne({ _id: req.params.id, role: 'CUSTOMER' }).select('name phone email address dueBalance createdAt').lean();
+    const customer = await User.findOne({ _id: req.params.id, role: 'CUSTOMER', isActive: true }).select('name phone email address dueBalance createdAt').lean();
     if (!customer) return res.status(404).json({ success: false, message: 'Customer not found.' });
-    const [sales, payments, ledger] = await Promise.all([Sale.find({ customer: customer._id }).sort({ createdAt: -1 }).limit(100).lean(), Payment.find({ customer: customer._id }).sort({ createdAt: -1 }).limit(100).lean(), DueTransaction.find({ customer: customer._id }).sort({ createdAt: -1 }).limit(200).lean()]);
-    res.json({ success: true, data: { customer, sales, payments, ledger } });
+    const [sales, payments, ledger, orders, saleStats, paymentStats, orderStats] = await Promise.all([
+      Sale.find({ customer: customer._id }).sort({ createdAt: -1 }).limit(100).lean(),
+      Payment.find({ customer: customer._id }).sort({ createdAt: -1 }).limit(100).lean(),
+      DueTransaction.find({ customer: customer._id }).sort({ createdAt: -1 }).limit(200).lean(),
+      Order.find({ customer: customer._id }).select('orderNumber status estimatedTotal createdAt').sort({ createdAt: -1 }).limit(200).lean(),
+      Sale.aggregate([{ $match: { customer: customer._id } }, { $group: { _id: null, count: { $sum: 1 }, total: { $sum: '$total' } } }]),
+      Payment.aggregate([{ $match: { customer: customer._id } }, { $group: { _id: null, count: { $sum: 1 }, total: { $sum: '$amount' } } }]),
+      Order.aggregate([{ $match: { customer: customer._id } }, { $group: { _id: null, count: { $sum: 1 }, pending: { $sum: { $cond: [{ $in: ['$status', ['NEW', 'ACCEPTED', 'PREPARING', 'READY_FOR_PICKUP']] }, 1, 0] } } } }])
+    ]);
+    res.json({ success: true, data: { customer, sales, payments, ledger, orders, summary: { salesCount: saleStats[0]?.count || 0, salesTotal: saleStats[0]?.total || 0, paymentsCount: paymentStats[0]?.count || 0, paymentsTotal: paymentStats[0]?.total || 0, ordersCount: orderStats[0]?.count || 0, pendingOrdersCount: orderStats[0]?.pending || 0 } } });
+  } catch (error) { next(error); }
+}
+
+export async function removeCustomer(req, res, next) {
+  try {
+    const removed = await inTransaction(async (session) => {
+      const customer = await User.findOne({ _id: req.params.id, role: 'CUSTOMER', isActive: true }).select('+dueBalance +password').session(session);
+      if (!customer) throw Object.assign(new Error('Customer account not found.'), { status: 404 });
+      if ((customer.dueBalance || 0) > 0) throw Object.assign(new Error('Settle this customer’s outstanding due before removing the account.'), { status: 409 });
+      const pendingOrder = await Order.exists({ customer: customer._id, status: { $in: ['NEW', 'ACCEPTED', 'PREPARING', 'READY_FOR_PICKUP'] } }).session(session);
+      if (pendingOrder) throw Object.assign(new Error('Complete or cancel this customer’s pending orders before removing the account.'), { status: 409 });
+      customer.name = 'Removed customer';
+      customer.phone = `removed-${customer._id}`;
+      customer.email = undefined;
+      customer.address = '';
+      customer.password = randomBytes(48).toString('base64url');
+      customer.isActive = false;
+      await customer.save({ session });
+      return { id: customer.id };
+    });
+    req.app.get('io')?.in(`customer:${removed.id}`).disconnectSockets(true);
+    res.json({ success: true, data: { id: removed.id, message: 'Customer account removed.' } });
   } catch (error) { next(error); }
 }
 

@@ -10,7 +10,7 @@ const OwnerDashboard = lazy(() => import('./pages/OwnerDashboard.jsx'));
 const ProductManager = lazy(() => import('./pages/ProductManager.jsx'));
 const OwnerDirectSalePage = lazy(() => import('./pages/OwnerDirectSale.jsx'));
 const Reports = lazy(() => import('./pages/OwnerDashboard.jsx').then(module => ({ default: module.Reports })));
-const OwnerCustomers = lazy(() => import('./pages/OwnerCustomers.jsx'));
+const OwnerCustomers = lazy(() => import('./pages/OwnerCustomerManager.jsx'));
 const ShopSettings = lazy(() => import('./pages/OwnerCustomers.jsx').then(module => ({ default: module.ShopSettings })));
 const PurchaseHistory = lazy(() => import('./pages/PurchaseHistory.jsx'));
 const PasswordChange = lazy(() => import('./pages/PasswordChange.jsx'));
