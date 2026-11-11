@@ -20,6 +20,9 @@ export default function ProductManager() {
   const [newCategory, setNewCategory] = useState('');
   const [categoryToDelete, setCategoryToDelete] = useState(null);
   const [deletingCategory, setDeletingCategory] = useState(false);
+  const [categoryToEdit, setCategoryToEdit] = useState(null);
+  const [categoryForm, setCategoryForm] = useState({ name: '', nameBn: '' });
+  const [savingCategory, setSavingCategory] = useState(false);
   const [image, setImage] = useState({ imageUrl: '', imagePublicId: '' });
   const [newProduct, setNewProduct] = useState({ name: '', nameBn: '', category: '', price: '', unit: 'kg', onHand: '' });
 
@@ -147,6 +150,35 @@ export default function ProductManager() {
     }
   };
 
+  const startCategoryEdit = category => {
+    setCategoryToDelete(null);
+    setCategoryToEdit(category);
+    setCategoryForm({ name: category.name || '', nameBn: category.nameBn || '' });
+    setError('');
+    setMessage('');
+  };
+
+  const saveCategory = async event => {
+    event.preventDefault();
+    if (!categoryToEdit || savingCategory) return;
+    const name = categoryForm.name.trim();
+    const nameBn = categoryForm.nameBn.trim();
+    if (!name) { setError('Category name is required.'); return; }
+    setSavingCategory(true);
+    setError('');
+    setMessage('');
+    try {
+      await api.patch(`/categories/${categoryToEdit._id}`, { name, nameBn });
+      setCategoryToEdit(null);
+      setMessage('Category name updated. Product list refreshed.');
+      await load();
+    } catch (e) {
+      setError(e.response?.data?.message || 'Category could not be updated.');
+    } finally {
+      setSavingCategory(false);
+    }
+  };
+
   const uploadImage = async file => {
     if (!file) return;
     const form = new FormData();
@@ -188,7 +220,10 @@ export default function ProductManager() {
           const count = products.filter(product => (product.category?._id || product.category) === category._id).length;
           return <div key={category._id} className="flex min-w-0 items-center justify-between gap-3 rounded-lg border bg-stone-50 p-3">
             <div className="min-w-0"><b className="block truncate">{category.nameBn || category.name}</b><small className="block truncate text-stone-500">{category.name} · {count}টি active product</small></div>
-            <button type="button" onClick={() => setCategoryToDelete({ ...category, activeProductCount: count })} className="inline-flex flex-none items-center gap-1 rounded-lg border border-red-100 bg-white px-2.5 py-2 text-xs font-semibold text-red-700 hover:bg-red-50"><Trash2 size={14}/>সরান</button>
+            <div className="flex flex-none gap-1.5">
+              <button type="button" onClick={() => startCategoryEdit(category)} className="inline-flex items-center gap-1 rounded-lg border bg-white px-2.5 py-2 text-xs font-semibold text-brand-800 hover:bg-brand-50"><Pencil size={14}/>নাম বদলান</button>
+              <button type="button" onClick={() => { setCategoryToEdit(null); setCategoryToDelete({ ...category, activeProductCount: count }); }} className="inline-flex items-center gap-1 rounded-lg border border-red-100 bg-white px-2.5 py-2 text-xs font-semibold text-red-700 hover:bg-red-50"><Trash2 size={14}/>সরান</button>
+            </div>
           </div>;
         })}
         {!categories.length && <p className="text-sm text-stone-500">কোনো active category নেই।</p>}
@@ -248,6 +283,19 @@ export default function ProductManager() {
       </article>)}
       {!filteredProducts.length && <div className="rounded-xl border border-dashed bg-white px-4 py-12 text-center text-stone-500">{search ? 'এই নামে কোনো পণ্য পাওয়া যায়নি।' : 'এখনো কোনো পণ্য যোগ করা হয়নি।'}</div>}
     </div>
+    {categoryToEdit && <div className="fixed inset-0 z-[90] grid place-items-center overflow-y-auto bg-stone-950/50 p-4" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget && !savingCategory) setCategoryToEdit(null); }}>
+      <form onSubmit={saveCategory} role="dialog" aria-modal="true" aria-labelledby="edit-category-title" className="w-full max-w-md rounded-2xl bg-white p-5 shadow-2xl sm:p-6">
+        <h2 id="edit-category-title" className="text-xl font-bold">ক্যাটাগরির নাম বদলান</h2>
+        <p className="mt-1 text-sm text-stone-500">এই category-র সব product-এ নতুন নাম দেখাবে।</p>
+        <label className="mt-4 grid gap-1.5 text-sm font-medium">Category name (English)
+          <input className="field" required maxLength={80} value={categoryForm.name} onChange={e => setCategoryForm(current => ({ ...current, name: e.target.value }))}/>
+        </label>
+        <label className="mt-3 grid gap-1.5 text-sm font-medium">Category name (Bangla, optional)
+          <input className="field" maxLength={80} value={categoryForm.nameBn} onChange={e => setCategoryForm(current => ({ ...current, nameBn: e.target.value }))}/>
+        </label>
+        <div className="mt-5 flex justify-end gap-2"><button type="button" disabled={savingCategory} onClick={() => setCategoryToEdit(null)} className="rounded-lg border px-4 py-2 text-sm">বাতিল</button><button type="submit" disabled={savingCategory} className="inline-flex items-center gap-2 rounded-lg bg-brand-700 px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"><Save size={15}/>{savingCategory ? 'সংরক্ষণ হচ্ছে…' : 'সংরক্ষণ করুন'}</button></div>
+      </form>
+    </div>}
     {categoryToDelete && <div className="fixed inset-0 z-[90] grid place-items-center overflow-y-auto bg-stone-950/50 p-4" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget && !deletingCategory) setCategoryToDelete(null); }}>
       <section role="alertdialog" aria-modal="true" aria-labelledby="delete-category-title" className="w-full max-w-md rounded-2xl bg-white p-5 shadow-2xl sm:p-6">
         <span className="grid h-11 w-11 place-items-center rounded-xl bg-red-50 text-red-700"><AlertTriangle size={21}/></span>
