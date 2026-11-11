@@ -19,7 +19,7 @@ export async function listProducts(req, res, next) {
     if (req.query.category) filter.category = req.query.category;
     if (req.query.q) filter.$text = { $search: String(req.query.q).slice(0, 100) };
     const sort = req.query.sort === 'price_asc' ? { price: 1 } : req.query.sort === 'price_desc' ? { price: -1 } : { createdAt: -1 };
-    const products = await Product.find(filter).populate('category', 'name nameBn').sort(sort).limit(100).lean();
+    const products = await Product.find(filter).populate('category', 'name nameBn').sort(sort).lean();
     const now = new Date();
     res.json({ success: true, data: products.map((p) => { const offerActive = p.offerPrice != null && (!p.offerStartsAt || p.offerStartsAt <= now) && (!p.offerEndsAt || p.offerEndsAt >= now); return { ...p, available: p.onHand - p.reserved, effectivePrice: offerActive ? p.offerPrice : p.price }; }) });
   } catch (error) { next(error); }
